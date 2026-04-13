@@ -1,5 +1,4 @@
 # Membagi dataset menjadi folder train/validation/test dengan proporsi 70:15:15
-
 from __future__ import annotations
 
 import argparse
