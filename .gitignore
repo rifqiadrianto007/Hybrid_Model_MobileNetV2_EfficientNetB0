@@ -3,21 +3,30 @@ venv_skripsi/
 venv/
 .venv/
 
-# Dataset (opsional, kalau ukurannya besar)
-dataset/
-dataset_split/
+# Data mentah / turunan / split
+data/raw/
+data/processed/
+data/splits/
 
-# Model tersimpan
-saved_model/
+# Model tersimpan dan artefak training
+models/checkpoints/
+models/final/
+models/*.keras
+models/*.h5
+
+# Hasil evaluasi
+reports/metrics/
+reports/figures/
+results/
+logs/
 
 # Cache Python
 __pycache__/
 *.pyc
 *.pyo
 
-# Log & hasil
-logs/
-results/
+# Notebook checkpoints
+.ipynb_checkpoints/
 
 # VS Code
 .vscode/
