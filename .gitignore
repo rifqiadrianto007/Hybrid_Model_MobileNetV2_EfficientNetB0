@@ -1,0 +1,27 @@
+# Virtual Environment
+venv_skripsi/
+venv/
+.venv/
+
+# Dataset (opsional, kalau ukurannya besar)
+dataset/
+dataset_split/
+
+# Model tersimpan
+saved_model/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Log & hasil
+logs/
+results/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
