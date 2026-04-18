@@ -4,8 +4,7 @@ Struktur ini disiapkan untuk workflow klasifikasi penyakit daun cabai dengan Ten
 
 ## Folder Utama
 
-- `data/raw/primer/` untuk dataset primer dari kebun warga.
-- `data/raw/sekunder/` untuk dataset sekunder dari Kaggle.
+- `data/raw/` untuk dataset mentah yang langsung berisi folder kelas.
 - `data/processed/` untuk data hasil preprocessing bila nanti ingin disimpan permanen.
 - `data/splits/` untuk file split train/validation/test.
 - `models/checkpoints/` untuk model terbaik per stage training.
@@ -22,15 +21,10 @@ Struktur ini disiapkan untuk workflow klasifikasi penyakit daun cabai dengan Ten
 Simpan gambar dengan format seperti ini:
 
 ```text
-data/raw/primer/leaf curl/*.jpg
-data/raw/primer/leaf spot/*.jpg
-data/raw/primer/yellowish/*.jpg
-data/raw/primer/healthy leaf/*.jpg
-
-data/raw/sekunder/leaf curl/*.jpg
-data/raw/sekunder/leaf spot/*.jpg
-data/raw/sekunder/yellowish/*.jpg
-data/raw/sekunder/healthy leaf/*.jpg
+data/raw/leaf curl/*.jpg
+data/raw/leaf spot/*.jpg
+data/raw/yellowish/*.jpg
+data/raw/healthy leaf/*.jpg
 ```
 
 Notebook utama sudah diarahkan ke folder lokal proyek ini melalui `Path.cwd()`, jadi cukup letakkan dataset di bawah `data/raw/` lalu jalankan notebook dari root project.
