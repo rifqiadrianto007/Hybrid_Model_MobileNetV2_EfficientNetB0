@@ -18,13 +18,17 @@ Struktur ini disiapkan untuk workflow klasifikasi penyakit daun cabai dengan Ten
 
 ## Struktur Dataset yang Disarankan
 
-Simpan gambar dengan format seperti ini:
+Simpan gambar mentah dengan format seperti ini:
 
 ```text
-data/raw/leaf curl/*.jpg
-data/raw/leaf spot/*.jpg
-data/raw/yellowish/*.jpg
-data/raw/healthy leaf/*.jpg
+data/raw/primer/leaf curl/*.jpg
+data/raw/primer/leaf spot/*.jpg
+data/raw/primer/yellowish/*.jpg
+data/raw/primer/healthy leaf/*.jpg
+data/raw/sekunder/leaf curl/*.jpg
+data/raw/sekunder/leaf spot/*.jpg
+data/raw/sekunder/yellowish/*.jpg
+data/raw/sekunder/healthy leaf/*.jpg
 ```
 
-Notebook utama sudah diarahkan ke folder lokal proyek ini melalui `Path.cwd()`, jadi cukup letakkan dataset di bawah `data/raw/` lalu jalankan notebook dari root project.
+Skrip split membaca dua sumber ini secara otomatis dari `data/raw/primer/` dan `data/raw/sekunder/`, lalu menggabungkannya ke `data/splits/`.
