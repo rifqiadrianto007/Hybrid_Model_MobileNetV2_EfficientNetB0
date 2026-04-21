@@ -15,6 +15,8 @@ models/*.keras
 models/*.h5
 
 # Hasil evaluasi
+reports/Train_V1_900/
+reports/Train_V2_900/
 reports/metrics/
 reports/figures/
 results/
