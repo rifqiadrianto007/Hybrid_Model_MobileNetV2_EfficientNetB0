@@ -1,3 +1,5 @@
+# FOLDER PRIMER DAN SEKUNDER
+
 # Membagi dataset menjadi folder train/validation/test dengan proporsi 70:15:15
 from __future__ import annotations
 
@@ -72,6 +74,7 @@ def copy_split(split_df: pd.DataFrame, split_dir: Path) -> None:
 # Fungsi utama untuk menjalankan proses split dataset
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--base-dir", type=str, default=None) # Root project opsional
     parser.add_argument("--train-ratio", type=float, default=0.70) # 70% train
     parser.add_argument("--val-ratio", type=float, default=0.15) # 15% validation
     parser.add_argument("--test-ratio", type=float, default=0.15) # 15% test
