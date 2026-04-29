@@ -78,24 +78,45 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-dir", type=str, default=None)
     parser.add_argument("--augment", action="store_true")
-    parser.add_argument("--aug-count", type=int, default=3)
+    parser.add_argument("--aug-count", type=int, default=1)
     args = parser.parse_args()
 
     base_dir = Path(args.base_dir) if args.base_dir else Path(__file__).resolve().parents[1]
+
     split_root = base_dir / "data" / "splits"
     output_root = base_dir / "data" / "processed"
 
     rng = np.random.default_rng(SEED)
 
     for split in ["train", "validation", "test"]:
+        print(f"Processing {split}...")
         process_split(
-            split,
-            split_root / split,
-            output_root / split,
-            args.augment,
-            args.aug_count,
-            rng
+            split=split,
+            input_dir=split_root / split,
+            output_dir=output_root / split,
+            augment_train=args.augment,
+            aug_count=max(1, args.aug_count),
+            rng=rng
         )
+
+    # COUNT
+    def count_images(split_name):
+        split_dir = output_root / split_name
+        if not split_dir.exists():
+            return 0
+        return sum(1 for p in split_dir.rglob("*") if p.suffix.lower() in VALID_EXT)
+
+    train_count = count_images("train")
+    val_count = count_images("validation")
+    test_count = count_images("test")
+
+    print("\n=== HASIL PREPROCESSING ===")
+    print(f"Train: {train_count}")
+    print(f"Validation: {val_count}")
+    print(f"Test: {test_count}")
+    print(f"Total: {train_count + val_count + test_count}")
+    print(f"Augmentasi: {args.augment}")
+    print(f"Augment per image: {args.aug_count}")
 
 if __name__ == "__main__":
     main()
