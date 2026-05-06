@@ -41,6 +41,8 @@ six==1.17.0
 tensorflow==2.16.2
 termcolor==3.3.0
 threadpoolctl==3.6.0
+torch==2.5.1+cu121
+torchvision==0.20.1+cu121
 tqdm==4.67.3
 typing_extensions==4.15.0
 tzdata==2026.1
