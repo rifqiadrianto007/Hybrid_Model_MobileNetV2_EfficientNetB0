@@ -25,6 +25,10 @@ reports/Train_V7_900/
 reports/Train_V8_1600/
 reports/Train_V9_1600t/
 reports/Train_V10_1600t/
+# Best results
+reports/Train_V11_1600t/
+# 
+
 reports/metrics/
 reports/figures/
 results/
