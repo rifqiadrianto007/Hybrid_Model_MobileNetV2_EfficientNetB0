@@ -28,6 +28,9 @@ reports/Train_V10_1600t/
 # Best results
 reports/Train_V11_1600t/
 # 
+# New preprocessing and training strategy
+reports/Train_V12_1600t/
+# 
 
 reports/metrics/
 reports/figures/
