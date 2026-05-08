@@ -3,134 +3,142 @@ from __future__ import annotations
 import argparse
 import shutil
 from pathlib import Path
+import random
 import numpy as np
 from PIL import Image, ImageOps
-import cv2
 
-# CONFIG
-IMG_SIZE = (224, 224)
+try:
+    from torchvision import transforms
+except Exception:
+    transforms = None
+
+try:
+    import torch
+except Exception:
+    torch = None
+
+IMG_SIZE = (224, 224) # Ukuran gambar yang diinginkan setelah resize
+# Use high-quality resampling (LANCZOS) as requested
+RESAMPLE_METHOD = Image.Resampling.LANCZOS
 CLASS_NAMES = ["leaf curl", "leaf spot", "yellowish", "healthy leaf"]
 VALID_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 SEED = 42
 
-# =========================
-# LOAD & RESIZE
-# =========================
-def load_and_resize(path: Path) -> Image.Image:
+# fungsi center crop
+def simple_crop_center(img, crop_frac: float = 0.9) -> Image.Image:
+    """Center crop a fraction of the shortest side, default 90%."""
+    w, h = img.size
+    crop = int(min(w, h) * crop_frac)
+    left = (w - crop) // 2
+    top = (h - crop) // 2
+    return img.crop((left, top, left + crop, top + crop))
+
+
+def random_crop(img, crop_frac_min: float = 0.8, crop_frac_max: float = 1.0) -> Image.Image:
+    """Random crop a region with side in [crop_frac_min, crop_frac_max] of shortest side."""
+    w, h = img.size
+    short = min(w, h)
+    frac = random.uniform(crop_frac_min, crop_frac_max)
+    crop = int(short * frac)
+    if w == short:
+        left = 0 if w == crop else random.randint(0, w - crop)
+        top = random.randint(0, h - crop)
+    else:
+        left = random.randint(0, w - crop)
+        top = 0 if h == crop else random.randint(0, h - crop)
+    return img.crop((left, top, left + crop, top + crop))
+
+def load_and_resize(path: Path, split: str = "train") -> Image.Image:
+    """Load image, apply crop depending on split, and resize with LANCZOS."""
     img = Image.open(path)
     img = ImageOps.exif_transpose(img).convert("RGB")
-    return img.resize(IMG_SIZE, Image.Resampling.LANCZOS)
+    # For training keep some randomness (random crop), for validation/test use center crop
+    if split == "train":
+        img = random_crop(img, crop_frac_min=0.8, crop_frac_max=1.0)
+    else:
+        img = simple_crop_center(img, crop_frac=0.9)
+    return img.resize(IMG_SIZE, RESAMPLE_METHOD)
 
-# =========================
-# ENHANCEMENT (SEKUNDER ONLY)
-# =========================
-def enhance_image(img: Image.Image) -> Image.Image:
-    img_np = np.array(img)
+class AddGaussianNoise:
+    """Add light gaussian noise to tensor image."""
 
-    # Denoising ringan
-    img_np = cv2.medianBlur(img_np, 3)
+    def __init__(self, std: float = 0.02, p: float = 0.3):
+        self.std = std
+        self.p = p
 
-    # CLAHE (contrast enhancement)
-    lab = cv2.cvtColor(img_np, cv2.COLOR_RGB2LAB)
-    l, a, b = cv2.split(lab)
+    def __call__(self, tensor):
+        if random.random() > self.p:
+            return tensor
+        if torch is None:
+            return tensor
+        noise = torch.randn_like(tensor) * self.std
+        return (tensor + noise).clamp(0.0, 1.0)
 
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-    l = clahe.apply(l)
 
-    lab = cv2.merge((l, a, b))
-    img_np = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+def get_online_transforms(img_size=IMG_SIZE):
+    """Build torchvision online augmentation transforms for training and eval.
 
-    return Image.fromarray(img_np)
+    Train: random crop + affine (shift/zoom/shear/rotation) + flip + gaussian noise.
+    Val/Test: center crop only.
+    """
+    if transforms is None:
+        raise ImportError("torchvision is not available")
 
-# =========================
-# AUGMENTATION (TRAIN ONLY)
-# =========================
-def augment(img: Image.Image, rng: np.random.Generator) -> Image.Image:
-    # Rotate
-    angle = rng.uniform(15, 30) * rng.choice([-1, 1])
-    img = img.rotate(angle, resample=Image.Resampling.BICUBIC)
+    train_transform = transforms.Compose([
+        transforms.Resize(img_size, interpolation=transforms.InterpolationMode.LANCZOS),
+        transforms.RandomCrop(img_size),
+        transforms.RandomAffine(
+            degrees=15,
+            translate=(0.15, 0.15),
+            scale=(0.8, 1.2),
+            shear=15,
+            fill=255,
+        ),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.ToTensor(),
+        AddGaussianNoise(std=0.02, p=0.3),
+    ])
 
-    # Flip
-    if rng.random() > 0.5:
-        img = ImageOps.mirror(img)
+    eval_transform = transforms.Compose([
+        transforms.Resize(img_size, interpolation=transforms.InterpolationMode.LANCZOS),
+        transforms.CenterCrop(img_size),
+        transforms.ToTensor(),
+    ])
 
-    # Zoom
-    w, h = img.size
-    zoom = rng.uniform(1.05, 1.2)
-    nw, nh = int(w / zoom), int(h / zoom)
-    left = rng.integers(0, w - nw + 1)
-    top = rng.integers(0, h - nh + 1)
-    img = img.crop((left, top, left + nw, top + nh))
-    img = img.resize((w, h), Image.Resampling.BICUBIC)
+    return train_transform, eval_transform
 
-    # Shift
-    dx = int(rng.integers(-0.1*w, 0.1*w))
-    dy = int(rng.integers(-0.1*h, 0.1*h))
-    img = img.transform(
-        img.size,
-        Image.Transform.AFFINE,
-        (1, 0, dx, 0, 1, dy),
-        resample=Image.Resampling.BICUBIC,
-        fillcolor=(0, 0, 0),
-    )
 
-    return img
+def save(img, path) :
+    path.parent.mkdir(parents = True, exist_ok = True)
+    img.save(path, quality = 95) # simpan dengan kualotas 95%
 
-# =========================
-# SAVE
-# =========================
-def save(img: Image.Image, path: Path):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(path, quality=95)
-
-# =========================
-# PROCESS SPLIT
-# =========================
-def process_split(split, input_dir, output_dir, augment_train, aug_count, rng):
-    if not input_dir.exists():
+def process_split(split, input_dir, output_dir) :
+    if not input_dir.exists() :
         return
 
-    if output_dir.exists():
+    if output_dir.exists() :
         shutil.rmtree(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents = True, exist_ok = True)
 
-    for cls in CLASS_NAMES:
-        src_cls = input_dir / cls
-        dst_cls = output_dir / cls
+    for cls in CLASS_NAMES :
+        src = input_dir / cls
+        dst = output_dir / cls
 
-        if not src_cls.exists():
+        if not src.exists() :
             continue
 
-        for file in src_cls.rglob("*"):
-            if file.suffix.lower() not in VALID_EXT:
+        for file in src.rglob("*") :
+            if file.suffix.lower() not in VALID_EXT :
                 continue
 
-            # Load + resize
-            img = load_and_resize(file)
+            img = load_and_resize(file, split=split)
+            save(img, dst / f"{file.stem}.jpg")
+            # Offline augmentation is intentionally removed.
+            # Use online augmentation during training via torchvision transforms.
 
-            # 🔥 Enhancement hanya untuk data sekunder
-            if "sekunder" in file.name.lower():
-                img = enhance_image(img)
-
-            # Save original
-            out_path = dst_cls / f"{file.stem}.jpg"
-            save(img, out_path)
-
-            # Augment hanya untuk train
-            if augment_train and split == "train":
-                for i in range(aug_count):
-                    aug_img = augment(img, rng)
-                    aug_path = dst_cls / f"{file.stem}_aug{i+1}.jpg"
-                    save(aug_img, aug_path)
-
-# =========================
-# MAIN
-# =========================
-def main():
+def main() :
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-dir", type=str, default=None)
-    parser.add_argument("--augment", action="store_true")
-    parser.add_argument("--aug-count", type=int, default=1)
+    parser.add_argument("--base-dir", type = str, default = None)
     args = parser.parse_args()
 
     base_dir = Path(args.base_dir) if args.base_dir else Path(__file__).resolve().parents[1]
@@ -138,23 +146,21 @@ def main():
     split_root = base_dir / "data" / "splits"
     output_root = base_dir / "data" / "processed"
 
-    rng = np.random.default_rng(SEED)
+    random.seed(SEED)
+    np.random.seed(SEED)
 
-    for split in ["train", "validation", "test"]:
+    for split in ["train", "validation", "test"] :
         print(f"Processing {split}...")
         process_split(
-            split=split,
-            input_dir=split_root / split,
-            output_dir=output_root / split,
-            augment_train=args.augment,
-            aug_count=max(1, args.aug_count),
-            rng=rng
+            split = split,
+            input_dir = split_root / split,
+            output_dir = output_root / split
         )
 
-    # COUNT
-    def count_images(split_name):
+    # menghitung data hasil preprocess
+    def count_images(split_name) :
         split_dir = output_root / split_name
-        if not split_dir.exists():
+        if not split_dir.exists() :
             return 0
         return sum(1 for p in split_dir.rglob("*") if p.suffix.lower() in VALID_EXT)
 
@@ -163,12 +169,12 @@ def main():
     test_count = count_images("test")
 
     print("\n=== HASIL PREPROCESSING ===")
-    print(f"Train: {train_count}")
-    print(f"Validation: {val_count}")
-    print(f"Test: {test_count}")
-    print(f"Total: {train_count + val_count + test_count}")
-    print(f"Augmentasi: {args.augment}")
-    print(f"Augment per image: {args.aug_count}")
+    print(f"Train : {train_count}")
+    print(f"Validation : {val_count}")
+    print(f"Test : {test_count}")
+    print(f"Total : {train_count + val_count + test_count}")
+    print("Augmentasi offline : disabled")
+    print("Gunakan augmentasi online saat training via torchvision.transforms")
 
-if __name__ == "__main__":
+if __name__ == "__main__" :
     main()
