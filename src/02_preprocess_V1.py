@@ -6,6 +6,7 @@ from pathlib import Path
 import random
 import numpy as np
 from PIL import Image, ImageOps
+from torchvision.transforms import ToPILImage
 
 try:
     from torchvision import transforms
@@ -118,7 +119,10 @@ def process_split(split, input_dir, output_dir) :
 
     if output_dir.exists() :
         shutil.rmtree(output_dir)
-    output_dir.mkdir(parents = True, exist_ok = True)
+    
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    train_transform, eval_transform = get_online_transforms()
 
     for cls in CLASS_NAMES :
         src = input_dir / cls
@@ -132,7 +136,16 @@ def process_split(split, input_dir, output_dir) :
                 continue
 
             img = load_and_resize(file, split=split)
-            save(img, dst / f"{file.stem}.jpg")
+             # pilih transform
+            transform = train_transform if split == "train" else eval_transform
+
+            # transform -> tensor
+            tensor_img = transform(img)
+
+            # tensor -> PIL
+            pil_img = transforms.ToPILImage()(tensor_img)
+
+            save(pil_img, dst / f"{file.stem}.jpg")
             # Offline augmentation is intentionally removed.
             # Use online augmentation during training via torchvision transforms.
 
